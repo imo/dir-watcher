@@ -13,4 +13,4 @@ task 'build', 'compile & npm install', (options) ->
 	run 'coffee', ['-c', '-o', 'lib/', 'src/']
 
 task 'test', 'test', (options) ->
-	run 'coffee', ['test/dir-watcher-test.coffee']
+	run 'expresso', ['test/dir-watcher-helper-test.coffee', 'test/dir-watcher-test.coffee']
