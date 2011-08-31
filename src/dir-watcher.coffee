@@ -35,9 +35,9 @@ exports.create = (fileChangedCallback) ->
 			addDirectory dir
 	}
 
-exports.iterateFilesOnly = dwh.iterateFilesOnly
-
 exports.setup = (persist) ->
 	inotify = inotifyFactory.create persist
 
 exports.walkDirectory = dwh.walkDirectory
+
+exports.walkDirectoryListSync = dwh.walkDirectoryListSync
