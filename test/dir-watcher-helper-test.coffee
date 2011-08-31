@@ -22,10 +22,9 @@ exports.testIterateDirectory = ->
 	dwh.iterateDirectory __dirname, (entry) ->
 		(path.basename(entry) in ['dir-watcher-test.coffee', 'dir-watcher-helper-test.coffee', 'folder1', 'folder2', 'folder3']).should.be.true
 
-exports.testIterateFilesOnly = ->
-	dwh.iterateFilesOnly __dirname, (entry) ->
-		(path.basename(entry) in ['dir-watcher-test.coffee', 'dir-watcher-helper-test.coffee']).should.be.true
-
 exports.testWalkDirectory = ->
 	dwh.walkDirectory __dirname, (entry) ->
 		(entry[__dirname.length..entry.length] in ['', '/folder1', '/folder2', '/folder3', '/folder2/folder4']).should.be.true
+
+exports.testWalkDirectoryListSync = ->
+	dwh.walkDirectoryListSync(__dirname).length.should.equal 5

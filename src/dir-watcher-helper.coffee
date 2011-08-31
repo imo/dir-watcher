@@ -7,6 +7,9 @@ isDirectory = (dir, callback) ->
 		throw err if err?
 		callback stats.isDirectory()
 
+isDirectorySync = (dir) ->
+	fs.statSync(dir).isDirectory()
+
 isFile = (file, callback) ->
 	fs.stat file, (err, stats) ->
 		throw err if err?
@@ -14,15 +17,9 @@ isFile = (file, callback) ->
 
 iterateDirectory = (dir, iterator) ->
 	fs.readdir dir, (err, entries) ->
+		throw err if err?
 		for entry in entries
 			iterator path.resolve(dir, entry)
-
-iterateFilesOnly = (dir, iterator) ->
-	fs.readdir dir, (err, entries) ->
-		for entry in entries
-			file = path.resolve(dir, entry)
-			isFile file, (isFileBoolean) ->
-				iterator file if isFileBoolean
 
 walkDirectory = (dir, iterator) ->
 	isDirectory dir, (isDir) ->
@@ -31,6 +28,15 @@ walkDirectory = (dir, iterator) ->
 			iterateDirectory dir, (entry) ->
 				walkDirectory entry, iterator 
 
+walkDirectoryListSync = (dir) ->
+	list = []
+	addDir = (base) ->
+		if isDirectorySync base
+			list.push base
+			addDir path.resolve(base, entry) for entry in fs.readdirSync(base)
+	addDir dir
+	list
+
 # public functions
 exports.isDirectory = isDirectory
 
@@ -38,6 +44,6 @@ exports.isFile = isFile
 
 exports.iterateDirectory = iterateDirectory
 
-exports.iterateFilesOnly = iterateFilesOnly
-
 exports.walkDirectory = walkDirectory
+
+exports.walkDirectoryListSync = walkDirectoryListSync
