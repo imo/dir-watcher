@@ -12,6 +12,6 @@
     "node": ">=0.4.5"
   },
   "dependencies": {
-    "inotify-plusplus": ">=1.0.0"
+    "inotify-plusplus": "=1.0.0"
   }
 }
