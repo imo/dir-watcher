@@ -4,9 +4,11 @@ inotifyFactory = require 'inotify-plusplus'
 path = require 'path'
 util = require 'util'
 
+# globals
+inotify = undefined
+
 # public functions
-exports.create = (persist, fileChangedCallback) ->
-	inotify = inotifyFactory.create persist
+exports.create = (fileChangedCallback) ->
 	watchedDirectories = []
 
 	addDirectory = (dir) ->
@@ -36,3 +38,6 @@ exports.create = (persist, fileChangedCallback) ->
 		watch: (dir) ->
 			addDirectory dir
 	}
+
+exports.setup = (persist) ->
+	inotify = inotifyFactory.create persist

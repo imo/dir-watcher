@@ -12,7 +12,8 @@ exports.testWrite = ->
 	testFile2 = path.resolve testDir, 'testFile2.txt'
 	writeCount = 0
 
-	dirWatcher = dirWatcherFactory.create false, (entry) ->
+	dirWatcherFactory.setup false
+	dirWatcher = dirWatcherFactory.create (entry) ->
 		(entry in [testFile, testFile2]).should.be.true
 		writeCount++
 
