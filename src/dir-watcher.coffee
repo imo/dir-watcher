@@ -14,24 +14,20 @@ exports.create = (fileChangedCallback) ->
 	addDirectory = (dir) ->
 		# path.resolve normalises the argument to an absolute path minus the ending forward slash
 		dir = path.resolve(dir)
-		if dir not in watchedDirectories
-			dwh.isDirectory dir, (isDirectory) ->
-				if isDirectory
-					watchedDirectories[dir] = inotify.watch
-						close_write: (e) ->
-							fileChangedCallback path.resolve(e.watch, e.name)
-						create: (e) ->
-							addDirectory path.resolve(e.watch, e.name)
-						moved_to: (e) ->
-							# check that it's a file first
-							file = path.resolve(e.watch, e.name)
-							dwh.isFile file, (isFile) ->
-								fileChangedCallback path.resolve(e.watch, e.name) if isFile
-					, dir
-
-					dwh.iterateDirectory dir, (entry) ->
-						addDirectory entry
-
+		dwh.walkDirectory dir, (entry) ->
+			if entry not in watchedDirectories
+				watchedDirectories[entry] = inotify.watch
+					close_write: (e) ->
+						fileChangedCallback path.resolve(e.watch, e.name)
+					create: (e) ->
+						addDirectory path.resolve(e.watch, e.name)
+					moved_to: (e) ->
+						# check that it's a file first
+						file = path.resolve(e.watch, e.name)
+						dwh.isFile file, (isFile) ->
+							fileChangedCallback path.resolve(e.watch, e.name) if isFile
+				, entry
+	
 	return {
 		get: ->
 			key for key, value of watchedDirectories
@@ -39,5 +35,9 @@ exports.create = (fileChangedCallback) ->
 			addDirectory dir
 	}
 
+exports.iterateFilesOnly = dwh.iterateFilesOnly
+
 exports.setup = (persist) ->
 	inotify = inotifyFactory.create persist
+
+exports.walkDirectory = dwh.walkDirectory

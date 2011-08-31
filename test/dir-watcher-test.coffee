@@ -17,9 +17,6 @@ exports.testWrite = ->
 		(entry in [testFile, testFile2]).should.be.true
 		writeCount++
 
-	(dirWatcher.get?).should.be.true
-	(dirWatcher.watch?).should.be.true
-	
 	dirWatcher.watch testDir
 	fs.writeFile testFile, 'test', ->
 		fs.rename testFile, testFile2
@@ -27,7 +24,7 @@ exports.testWrite = ->
 
 	setTimeout ->
 		dirWatcher.get().length.should.equal(2)
-		fs.rmdir testNewDir
 		writeCount.should.equal 2
+		fs.rmdir testNewDir
 		fs.unlink testFile2
-	, 500
+	, 1000
