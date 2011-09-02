@@ -7,6 +7,18 @@ util = require 'util'
 # globals
 inotify = undefined
 
+# private functions
+getPath = (e) -> path.resolve(e.watch, e.name)
+
+unwatchDirectories = (e, watchedDirectories) ->
+	# if a directory was moved or deleted and it contained subdirectories, then those subdirectories need to be cleared from the list as well
+	entry = getPath e
+	entryEndPos = entry.length - 1
+	for key, value of watchedDirectories
+		if key[0..entryEndPos] == entry
+			watchedDirectories[key]() # this unwatches the directory
+			delete watchedDirectories[key]
+
 # public functions
 exports.create = (fileChangedCallback) ->
 	watchedDirectories = []
@@ -14,24 +26,33 @@ exports.create = (fileChangedCallback) ->
 	addDirectory = (dir) ->
 		# path.resolve normalises the argument to an absolute path minus the ending forward slash
 		dir = path.resolve(dir)
-		dwh.walkDirectoryTree dir, (entry, isDir) ->
-			if isDir and entry not in watchedDirectories
-				watchedDirectories[entry] = inotify.watch
+		dwh.walkDirectoryTree dir, (dirEntry, isDir) ->
+			if isDir and dirEntry not in watchedDirectories
+				watchedDirectories[dirEntry] = inotify.watch
 					close_write: (e) ->
-						fileChangedCallback path.resolve(e.watch, e.name)
+						entry = getPath e
+						fileChangedCallback entry
 					create: (e) ->
-						addDirectory path.resolve(e.watch, e.name)
+						entry = getPath e
+						dwh.isDirectory entry, (isDir) ->
+							addDirectory entry if isDir
+					delete: (e) ->
+						unwatchDirectories e, watchedDirectories
+					moved_from: (e) ->
+						unwatchDirectories e, watchedDirectories
 					moved_to: (e) ->
-						# check that it's a file first
-						file = path.resolve(e.watch, e.name)
-						dwh.isFile file, (isFile) ->
-							fileChangedCallback path.resolve(e.watch, e.name) if isFile
-				, entry
+						entry = getPath e
+						dwh.isDirectory entry, (isDir) ->
+							if isDir
+								addDirectory entry
+							else
+								fileChangedCallback entry
+				, dirEntry
 	
 	return {
 		get: ->
 			key for key, value of watchedDirectories
-		watch: (dir) ->
+		watchDirectoryTree: (dir) ->
 			addDirectory dir
 	}
 

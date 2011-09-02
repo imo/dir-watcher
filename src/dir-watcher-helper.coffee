@@ -4,19 +4,29 @@ path = require 'path'
 # private functions
 isDirectory = (dir, callback) ->
 	fs.stat dir, (err, stats) ->
-		throw err if err?
-		callback stats.isDirectory()
+		if err?
+			callback false
+		else
+			callback stats.isDirectory()
 
 isDirectorySync = (dir, callback) ->
-	fs.statSync(dir).isDirectory()
+	try
+		fs.statSync(dir).isDirectory()
+	catch err
+		false
 
 isFile = (file, callback) ->
 	fs.stat file, (err, stats) ->
-		throw err if err?
-		callback stats.isFile()
+		if err?
+			callback false
+		else
+			callback stats.isFile()
 
 isFileSync = (file, callback) ->
-	fs.statSync(file).isFile()
+	try
+		fs.statSync(file).isFile()
+	catch err
+		false
 
 iterateDirectory = (dir, iterator) ->
 	fs.readdir dir, (err, entries) ->
@@ -26,12 +36,14 @@ iterateDirectory = (dir, iterator) ->
 
 walkDirectoryTree = (dir, iterator) ->
 	# path.resolve normalises to an absolute path
-	dir = path.resolve(dir)
-	isDirectory dir, (isDir) ->
-		iterator dir, isDir
-		if isDir
-			iterateDirectory dir, (entry) ->
-				walkDirectoryTree entry, iterator
+	dir = path.resolve dir
+
+	# isDirectory needs to be a synchronous call because directories could be deleted after the isDirectory flag is set to true during an asynchronous call
+	isDir = isDirectorySync dir
+	iterator dir, isDir
+	if isDir
+		iterateDirectory dir, (entry) ->
+			walkDirectoryTree entry, iterator
 
 walkDirectoryTreeSync = (dir) ->
 	list = []
