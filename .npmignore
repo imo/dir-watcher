@@ -1,5 +1,6 @@
 .git*
 Cakefile
+diagnostics/
 src/
 test/
 npm-debug.log
