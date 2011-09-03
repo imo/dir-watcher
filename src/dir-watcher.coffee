@@ -25,7 +25,7 @@ isFileSync = (file) ->
 		false
 
 unwatchDirectories = (e, watchedDirectories) ->
-	# if a directory was moved or deleted and it contained subdirectories, then those subdirectories need to be cleared from the list as well
+	# if a directory was moved and it contained subdirectories, then those subdirectories need to be cleared from the list as well (they will be added back by addDirectoryToWatchList)
 	entry = getPath e
 	entryEndPos = entry.length - 1
 	for key, value of watchedDirectories
