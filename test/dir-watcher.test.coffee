@@ -6,6 +6,11 @@ should = require 'should'
 
 # private functions
 
+assertTreeList = (options) ->
+	relativeTreeList = treeListToRelativePath options.basePath, options.treeList
+	jsonList = JSON.stringify relativeTreeList
+	jsonList.should.equal options.shouldEquals
+
 makeDirIfNotExists = (dir) ->
 	fs.mkdirSync(dir, 0777) if !path.existsSync(dir)
 
@@ -90,14 +95,14 @@ exports.testGetRelativePathSubdirectory = ->
 
 exports.testGetRelativePathTooLong = ->
 	try
-		dirWatcher.getRelativePath('/test/asdf/', '/test')
+		dirWatcher.getRelativePath '/test/asdf/', '/test'
 		throw 'Exception should have been raised for basePath being too long.'
 	catch err
 		err.should.equal 'getPathSuffix Error: basePath should be shorter than or equal to longPath.'
 
 exports.testGetRelativePathNoMatch = ->
 	try
-		dirWatcher.getRelativePath('/test', '/asdf/qwer')
+		dirWatcher.getRelativePath '/test', '/asdf/qwer'
 		throw 'Exception should have been raised for basePath differing to longPath.'
 	catch err
 		err.should.equal 'getPathSuffix Error: The prefix of longPath should match basePath.'
@@ -114,10 +119,55 @@ exports.testIsFileSyncTrue = ->
 exports.testIsFileSyncFalseForDirectory = ->
 	dirWatcher.isFileSync(__dirname).should.be.false
 
+exports.testRmRecursiveSyncWithSymLink = ->
+	testDir = path.resolve tempDir, 'rmRecursiveSyncWithSymLink'
+	makeDirIfNotExists testDir
+
+	testDir1 = path.resolve testDir, 'dir1'
+	testDir1File1 = path.resolve testDir1, 'file1.txt'
+	makeDirIfNotExists testDir1
+	fs.writeFileSync testDir1File1, '-'
+
+	testDir2 = path.resolve testDir, 'dir2'
+	testDir2File2 = path.resolve testDir2, 'file2.txt'
+	makeDirIfNotExists testDir2
+	fs.writeFileSync testDir2File2, '-'
+
+	testDir2Link1 = path.resolve testDir2, 'link1'
+	fs.symlinkSync testDir1, testDir2Link1
+
+	dirWatcher.rmRecursiveSync testDir2
+
+	testDir1Contents = fs.readdirSync testDir1
+	JSON.stringify(testDir1Contents).should.equal '["file1.txt"]'
+
+	testDir2Contents = fs.readdirSync testDir2
+	JSON.stringify(testDir2Contents).should.equal '[]'
+
 exports.testWalkDirectoryTreeSync = ->
-	startPos = __dirname.length + 1
-	treeList = treeListToRelativePath(__dirname, dirWatcher.walkDirectoryTreeSync(__dirname))
-	JSON.stringify(treeList).should.equal '["","dir-watcher.test.coffee","folder1","folder1/dummy","folder2","folder2/dummy","folder2/folder4","folder2/folder4/dummy","folder3","folder3/dummy"]'
+	assertTreeList
+		basePath: __dirname
+		treeList: dirWatcher.walkDirectoryTreeSync __dirname
+		shouldEquals: '["","dir-watcher.test.coffee","folder1","folder1/dummy","folder2","folder2/dummy","folder2/folder4","folder2/folder4/dummy","folder3","folder3/dummy"]'
+
+exports.testWalkDirectoryTreeSyncWithSymlink = ->
+	testDir = path.resolve tempDir, 'walkDirectoryTreeSyncWithSymlink'
+	testFile = path.resolve testDir, 'someFile.txt'
+	fs.mkdirSync testDir, 0777
+	fs.writeFileSync testFile, 'someFile'
+
+	anotherTestDir = path.resolve tempDir, 'anotherOne'
+	anotherTestDirFile = path.resolve anotherTestDir, 'aFile.txt'
+	fs.mkdirSync anotherTestDir, 0777
+	fs.writeFileSync anotherTestDirFile, '-'
+
+	testDirLink = path.resolve testDir, 'aLink'
+	fs.symlinkSync anotherTestDir, testDirLink
+
+	assertTreeList
+		basePath: testDir
+		treeList: dirWatcher.walkDirectoryTreeSync testDir
+		shouldEquals: '["","someFile.txt","aLink","aLink/aFile.txt"]'
 
 exports.testWatchWriteAndRenameFile = ->
 	testDir = path.resolve tempDir, 'writeAndRenameFile'
@@ -136,10 +186,12 @@ exports.testWatchWriteAndRenameFile = ->
 
 	fs.writeFileSync testFile1, 'test'
 	fs.renameSync testFile1, testFile2
-	fs.unlinkSync testFile2
 
 	setTimeout ->
-		JSON.stringify(treeListToRelativePath(testDir, testWatcher.get())).should.equal '[""]'
+		assertTreeList
+			basePath: testDir
+			treeList: testWatcher.get()
+			shouldEquals: '[""]'
 		changeCount.should.equal 2
 	, 500
 
@@ -155,24 +207,35 @@ exports.testWatchCreateAndRenameDirectory = ->
 	fs.renameSync testDir1, testDir2
 
 	setTimeout ->
-		JSON.stringify(treeListToRelativePath(testDir, testWatcher.get())).should.equal '["","testDir2"]'
+		assertTreeList
+			basePath: testDir
+			treeList: testWatcher.get()
+			shouldEquals: '["","testDir2"]'
 	, 500
 
-exports.testRemoveDirectory = ->
+exports.testWatchRemoveDirectory = ->
 	testDir = path.resolve tempDir, 'removeDirectory'
 	makeDirIfNotExists testDir
+
 	testWatcher = dirWatcher.create()
 	testWatcher.watchDirectoryTreeSync testDir
 
 	testDir3 = path.resolve testDir, 'testDir3'
 	fs.mkdirSync testDir3, 0777
+
+	testDir4 = path.resolve testDir, 'testDir4'
+	fs.mkdirSync testDir4, 0777
+
 	fs.rmdirSync testDir3
 	
 	setTimeout ->
-		JSON.stringify(treeListToRelativePath(testDir, testWatcher.get())).should.equal '[""]'
+		assertTreeList
+			basePath: testDir
+			treeList: testWatcher.get()
+			shouldEquals: '["","testDir4"]'
 	, 500
 
-exports.testMakeSubdirectoryFile = ->
+exports.testWatchMakeSubdirectoryFile = ->
 	testDir = path.resolve tempDir, 'makeSubdirectoryFile'
 	makeDirIfNotExists testDir
 
@@ -187,18 +250,21 @@ exports.testMakeSubdirectoryFile = ->
 	testWatcher.watchDirectoryTreeSync testDir
 
 	fs.mkdirSync testDir4, 0777
-	# inotify doesn't work immediately so you do need to give it a bit of time
+	# inotify doesn't always work immediately so you do need to give it a bit of time
 	setTimeout ->
 		fs.writeFileSync testDir4File1, 'test'
 	, 250
 
 	setTimeout ->
-		JSON.stringify(treeListToRelativePath(testDir, testWatcher.get())).should.equal '["","testDir4"]'
+		assertTreeList
+			basePath: testDir
+			treeList: testWatcher.get()
+			shouldEquals: '["","testDir4"]'
 		changeCount.should.equal 1
 	, 500
 
 
-exports.testRenameDirectoryWithSubdirectory = ->
+exports.testWatchRenameDirectoryWithSubdirectory = ->
 	testDir = path.resolve tempDir, 'renameDirectoryWithSubdirectory'
 	makeDirIfNotExists testDir
 	testWatcher = dirWatcher.create()
@@ -214,5 +280,8 @@ exports.testRenameDirectoryWithSubdirectory = ->
 	fs.renameSync testDir5, testDir6
 
 	setTimeout ->
-		JSON.stringify(treeListToRelativePath(testDir, testWatcher.get())).should.equal '["","testDir6","testDir6/testDir1"]'
+		assertTreeList
+			basePath: testDir
+			treeList: testWatcher.get()
+			shouldEquals: '["","testDir6","testDir6/testDir1"]'
 	, 500

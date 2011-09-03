@@ -12,6 +12,7 @@ getPath = (e) -> path.resolve(e.watch, e.name)
 
 # isDirectorySync needs to be a synchronous call because directories could be moved/deleted after the flag is set during an asynchronous call.
 isDirectorySync = (dir) ->
+	# note: will return true for directory symbolic links
 	if path.existsSync(dir)
 		fs.statSync(dir).isDirectory()
 	else
@@ -19,27 +20,38 @@ isDirectorySync = (dir) ->
 
 # isFileSync needs to be a synchronous call because files could be moved/deleted after the flag is set during an asynchronous call.
 isFileSync = (file) ->
+	# note: will return true for file links (both hard & symbolic)
 	if path.existsSync(file)
 		fs.statSync(file).isFile()
 	else
 		false
 
-unwatchDirectories = (e, watchedDirectories) ->
+unwatchDirectories = (dir, watchedDirectories) ->
 	# if a directory was moved and it contained subdirectories, then those subdirectories need to be cleared from the list as well (they will be added back by addDirectoryToWatchList)
-	entry = getPath e
-	entryEndPos = entry.length - 1
-	for key, value of watchedDirectories
-		if key[0..entryEndPos] == entry
-			watchedDirectories[key]() # this unwatches the directory
-			delete watchedDirectories[key]
+	if not isDirectorySync dir
+		throw 'unwatchDirectories only accepts a directory as the first parameter.'
 
-# walkDirectoryTree needs to be a synchronous call because it ensures the directory structure remains static while the system is iterating through all the subdirectories to watch.   Many problems used to occur when it was an asynchronous call because the directory structure could change at any time, as evidenced in the unit tests.
-walkDirectoryTreeSync = (dir) ->
+	dirTree = walkDirectoryTreeSync pathToUnwatch, true
+	for entry in dirTree
+		if entry in watchedDirectories
+			watchedDirectories[entry]() # this unwatches the directory
+			delete watchedDirectories[entry]
+
+# walkDirectoryTreeSync will return a list of all directories & files recursively in the specified directory (including itself).
+walkDirectoryTreeSync = (dir, directoriesOnly = false) ->
+	# note: walkDirectoryTree needs to be a synchronous call because it ensures the directory structure remains static while the system is iterating through all the subdirectories to watch.   Many problems used to occur when it was an asynchronous call because the directory structure could change at any time, as evidenced during testing.
+	if not isDirectorySync dir
+		throw 'walkDirectoryTreeSync only accepts a directory as the first parameter.'
+
 	pathList = []
 	addPathToList = (entry) ->
-		pathList.push entry
-		if isDirectorySync entry
-			addPathToList path.resolve(entry, subEntry) for subEntry in fs.readdirSync(entry)
+		if path.existsSync entry
+			if directoriesOnly == false then pathList.push entry
+			stat = fs.statSync entry
+			if stat.isDirectory()
+				if directoriesOnly == true then pathList.push entry
+				for subEntry in fs.readdirSync entry
+					addPathToList path.resolve(entry, subEntry)
 	# path.resolve normalises to an absolute path
 	addPathToList path.resolve(dir)
 	pathList
@@ -49,43 +61,51 @@ walkDirectoryTreeSync = (dir) ->
 exports.rmRecursiveSync = (dir) ->
 	traverseDirToRemove = (removePath) ->
 		for entry in fs.readdirSync(removePath)
-			entryPath = path.resolve(removePath, entry)
-			if isDirectorySync(entryPath)
+			entryPath = path.resolve removePath, entry
+
+			lstat = fs.lstatSync entryPath
+			if lstat.isFile() or lstat.isSymbolicLink()
+				# hard links come here to be deleted due to isFile()
+				fs.unlinkSync entryPath
+			else if lstat.isDirectory()
 				traverseDirToRemove entryPath
 				fs.rmdirSync entryPath
 			else
-				fs.unlinkSync entryPath
+				throw "rmRecursiveSync: Came across #{removePath} while removing #{dir} - it's neither a file, symlink or directory so I'm not sure what to do with it"
 	traverseDirToRemove path.resolve(dir)
 
 exports.create = (fileChangedCallback) ->
 	watchedDirectories = []
 
 	addDirectoryToWatchList = (dir) ->
-		# path.resolve normalises the argument to an absolute path minus the ending forward slash
-		dir = path.resolve(dir)
+		# path.resolve normalises to an absolute path minus the last forward slash
+		dirTree = walkDirectoryTreeSync path.resolve(dir), true
 
-		dirTree = walkDirectoryTreeSync(dir)
-
-		dirTree = walkDirectoryTreeSync dir
 		for dirEntry in dirTree
-			if isDirectorySync(dirEntry) and dirEntry not in watchedDirectories
+			if dirEntry not in watchedDirectories
 				watchedDirectories[dirEntry] = inotify.watch
 					close_write: (e) ->
 						entry = getPath e
 						fileChangedCallback entry
 					create: (e) ->
 						entry = getPath e
-						addDirectoryToWatchList entry if isDirectorySync(entry)
+						if isDirectorySync entry
+							addDirectoryToWatchList entry
 					delete: (e) ->
-						unwatchDirectories e, watchedDirectories
+						entry = getPath e
+						if isDirectorySync entry
+							unwatchDirectories entry, watchedDirectories
 					moved_from: (e) ->
-						unwatchDirectories e, watchedDirectories
+						entry = getPath e
+						if isDirectorySync entry
+							unwatchDirectories entry, watchedDirectories
 					moved_to: (e) ->
 						entry = getPath e
-						if isDirectorySync(entry)
-							addDirectoryToWatchList entry
-						else
-							fileChangedCallback entry
+						if path.existsSync(entry)
+							if fs.statSync(entry).isDirectory()
+								addDirectoryToWatchList entry
+							else
+								fileChangedCallback entry
 				, dirEntry
 
 	return {
@@ -94,6 +114,10 @@ exports.create = (fileChangedCallback) ->
 		watchDirectoryTreeSync: (dir) ->
 			addDirectoryToWatchList dir
 	}
+
+exports.isDirectorySync = isDirectorySync
+
+exports.isFileSync = isFileSync
 
 exports.getMirrorPath = (baseDirectoryPath, filePath, oldDirectoryName, newDirectoryName) ->
 	# generate lib filename from src filename
@@ -118,10 +142,6 @@ exports.getRelativePath = (basePath, longPath) ->
 	throw 'getPathSuffix Error: The prefix of longPath should match basePath.' if longPath[0..basePath.length - 1] != basePath
 
 	longPath.slice(basePath.length)
-
-exports.isDirectorySync = isDirectorySync
-
-exports.isFileSync = isFileSync
 
 exports.setup = (persist) ->
 	inotify = inotifyFactory.create persist
