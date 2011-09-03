@@ -2,7 +2,7 @@
   "name": "dir-watcher",
   "description": "A nodejs library that continuously watches for file changes in specified directories and their subdirectories",
   "author": "khoomeister",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "lib/dir-watcher",
   "licenses": [{
     "type": "MIT",

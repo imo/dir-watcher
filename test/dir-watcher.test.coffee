@@ -6,18 +6,6 @@ should = require 'should'
 
 # private functions
 
-cleanDir = (dir) ->
-	recursiveCleanDir = (pathToClean) ->
-		for entry in fs.readdirSync(pathToClean)
-			entryPath = path.resolve(pathToClean, entry)
-			if dirWatcher.isDirectorySync(entryPath)
-				recursiveCleanDir entryPath
-				fs.rmdirSync entryPath
-			else
-				fs.unlinkSync entryPath
-	recursiveCleanDir path.resolve(dir)
-
-
 makeDirIfNotExists = (dir) ->
 	fs.mkdirSync(dir, 0777) if !path.existsSync(dir)
 
@@ -30,18 +18,98 @@ treeListToRelativePath = (basePath, treeList) ->
 dirWatcher.setup false
 tempDir = path.resolve __dirname, '..', 'temp'
 makeDirIfNotExists(tempDir, 0777)
-cleanDir tempDir
 
-# testsf
+# first test (rm -rf: recursively remove all contents of a directory)
+dirWatcher.rmRecursiveSync tempDir
+fs.readdirSync(tempDir).length.should.equal 0
+
+# more tests
+
+exports.testGetMirrorPathRoot = ->
+	baseDirectoryPath = '/'
+	filePath = '/src/file1.txt'
+	oldDirectoryName = 'src'
+	newDirectoryName = 'lib'
+	dirWatcher.getMirrorPath(baseDirectoryPath, filePath, oldDirectoryName, newDirectoryName).should.equal '/lib/file1.txt'
+
+exports.testGetMirrorPathSubdirectory = ->
+	baseDirectoryPath = '/home/username/'
+	filePath = '/home/username/src/file1.txt'
+	oldDirectoryName = 'src'
+	newDirectoryName = 'lib'
+	dirWatcher.getMirrorPath(baseDirectoryPath, filePath, oldDirectoryName, newDirectoryName).should.equal '/home/username/lib/file1.txt'
+
+exports.testGetMirrorPathFilePathSubdirectory = ->
+	baseDirectoryPath = '/var/log/'
+	filePath = '/var/log/old/subdir/file.log'
+	oldDirectoryName = 'old'
+	newDirectoryName = 'new'
+	dirWatcher.getMirrorPath(baseDirectoryPath, filePath, oldDirectoryName, newDirectoryName).should.equal '/var/log/new/subdir/file.log'
+
+exports.testGetMirrorPathWithoutTrailingSlash = ->
+	baseDirectoryPath = '/var/log'
+	filePath = '/var/log/old/file.log'
+	oldDirectoryName = 'old'
+	newDirectoryName = 'new'
+	dirWatcher.getMirrorPath(baseDirectoryPath, filePath, oldDirectoryName, newDirectoryName).should.equal '/var/log/new/file.log'
+
+exports.testGetMirrorPathWithFilenameWithoutExtension = ->
+	baseDirectoryPath = '/var/log/'
+	filePath = '/var/log/old/sub1/sub2/filename'
+	oldDirectoryName = 'old'
+	newDirectoryName = 'new'
+	dirWatcher.getMirrorPath(baseDirectoryPath, filePath, oldDirectoryName, newDirectoryName).should.equal '/var/log/new/sub1/sub2/filename'
+
+exports.testGetMirrorPathWithBaseDirectoryPathTooLong = ->
+	baseDirectoryPath = '/var/log/toolongpath/blahblahblah'
+	filePath = '/var/old/file.log'
+	oldDirectoryName = 'old'
+	newDirectoryName = 'new'
+	try
+		dirWatcher.getMirrorPath baseDirectoryPath, filePath, oldDirectoryName, newDirectoryName
+		throw 'Exception should have been raised for baseDirectoryPath and oldDirectory being too long.'
+	catch err
+		err.should.equal 'getMirrorPath Error: baseDirectoryPath + oldDirectoryName should be shorter than filePath.'
+
+exports.testGetMirrorPathWithNonMatchingPaths = ->
+	baseDirectoryPath = '/var/log/'
+	filePath = '/var/log/nonexistent/file.log'
+	oldDirectoryName = 'old'
+	newDirectoryName = 'new'
+	try
+		dirWatcher.getMirrorPath baseDirectoryPath, filePath, oldDirectoryName, newDirectoryName
+		throw 'Exception should have been raised for the prefix of filePath not matching baseDirectoryPath + oldDirectoryName.'
+	catch err
+		err.should.equal 'getMirrorPath Error: The prefix of filePath should match baseDirectoryPath + oldDirectoryName.'
+
+exports.testGetRelativePathRoot = ->
+	dirWatcher.getRelativePath('/', '/qwerty/apple').should.equal('qwerty/apple')
+
+exports.testGetRelativePathSubdirectory = ->
+	dirWatcher.getRelativePath('/test/asdf/', '/test/asdf/qwer').should.equal('qwer')
+
+exports.testGetRelativePathTooLong = ->
+	try
+		dirWatcher.getRelativePath('/test/asdf/', '/test')
+		throw 'Exception should have been raised for basePath being too long.'
+	catch err
+		err.should.equal 'getPathSuffix Error: basePath should be shorter than or equal to longPath.'
+
+exports.testGetRelativePathNoMatch = ->
+	try
+		dirWatcher.getRelativePath('/test', '/asdf/qwer')
+		throw 'Exception should have been raised for basePath differing to longPath.'
+	catch err
+		err.should.equal 'getPathSuffix Error: The prefix of longPath should match basePath.'
 
 exports.testIsDirectorySyncTrue = ->
 	dirWatcher.isDirectorySync(__dirname).should.be.true
 
 exports.testIsDirectorySyncFalseForFile = ->
-	dirWatcher.isDirectorySync(__dirname + '/dir-watcher-test.coffee').should.be.false
+	dirWatcher.isDirectorySync(__dirname + '/dir-watcher.test.coffee').should.be.false
 
 exports.testIsFileSyncTrue = ->
-	dirWatcher.isFileSync(path.resolve(__dirname, 'dir-watcher-test.coffee')).should.be.true
+	dirWatcher.isFileSync(path.resolve(__dirname, 'dir-watcher.test.coffee')).should.be.true
 
 exports.testIsFileSyncFalseForDirectory = ->
 	dirWatcher.isFileSync(__dirname).should.be.false
@@ -49,7 +117,7 @@ exports.testIsFileSyncFalseForDirectory = ->
 exports.testWalkDirectoryTreeSync = ->
 	startPos = __dirname.length + 1
 	treeList = treeListToRelativePath(__dirname, dirWatcher.walkDirectoryTreeSync(__dirname))
-	JSON.stringify(treeList).should.equal '["","dir-watcher-test.coffee","folder1","folder1/dummy","folder2","folder2/dummy","folder2/folder4","folder2/folder4/dummy","folder3","folder3/dummy"]'
+	JSON.stringify(treeList).should.equal '["","dir-watcher.test.coffee","folder1","folder1/dummy","folder2","folder2/dummy","folder2/folder4","folder2/folder4/dummy","folder3","folder3/dummy"]'
 
 exports.testWatchWriteAndRenameFile = ->
 	testDir = path.resolve tempDir, 'writeAndRenameFile'

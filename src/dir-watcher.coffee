@@ -45,6 +45,18 @@ walkDirectoryTreeSync = (dir) ->
 	pathList
 
 # public functions
+
+exports.rmRecursiveSync = (dir) ->
+	traverseDirToRemove = (removePath) ->
+		for entry in fs.readdirSync(removePath)
+			entryPath = path.resolve(removePath, entry)
+			if isDirectorySync(entryPath)
+				traverseDirToRemove entryPath
+				fs.rmdirSync entryPath
+			else
+				fs.unlinkSync entryPath
+	traverseDirToRemove path.resolve(dir)
+
 exports.create = (fileChangedCallback) ->
 	watchedDirectories = []
 
@@ -83,11 +95,35 @@ exports.create = (fileChangedCallback) ->
 			addDirectoryToWatchList dir
 	}
 
-exports.setup = (persist) ->
-	inotify = inotifyFactory.create persist
+exports.getMirrorPath = (baseDirectoryPath, filePath, oldDirectoryName, newDirectoryName) ->
+	# generate lib filename from src filename
+
+	# init
+	oldPathPrefix = path.resolve baseDirectoryPath, oldDirectoryName
+	startPos = oldPathPrefix.length
+
+	# validate
+	throw 'getMirrorPath Error: baseDirectoryPath + oldDirectoryName should be shorter than filePath.' if startPos > filePath.length
+	throw 'getMirrorPath Error: The prefix of filePath should match baseDirectoryPath + oldDirectoryName.' if filePath[0..startPos - 1] != oldPathPrefix
+
+	# transform
+	pathSuffix = filePath[startPos + 1..filePath.length]
+	path.resolve baseDirectoryPath, newDirectoryName, pathSuffix
+
+exports.getRelativePath = (basePath, longPath) ->
+	basePath += '/' if basePath[basePath.length - 1] != '/'
+
+	# validate
+	throw 'getPathSuffix Error: basePath should be shorter than or equal to longPath.' if basePath.length > longPath.length
+	throw 'getPathSuffix Error: The prefix of longPath should match basePath.' if longPath[0..basePath.length - 1] != basePath
+
+	longPath.slice(basePath.length)
 
 exports.isDirectorySync = isDirectorySync
 
 exports.isFileSync = isFileSync
+
+exports.setup = (persist) ->
+	inotify = inotifyFactory.create persist
 
 exports.walkDirectoryTreeSync = walkDirectoryTreeSync
