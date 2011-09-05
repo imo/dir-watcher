@@ -12,6 +12,8 @@
     "node": ">=0.4.5"
   },
   "dependencies": {
-    "inotify-plusplus": "=1.0.1"
+    "coffee-new": "=0.0.5",
+    "inotify-plusplus": "=1.0.1",
+    "should": ">=0.3.1"
   }
 }
