@@ -8,6 +8,8 @@ should = require 'should'
 
 assertTreeList = (options) ->
 	relativeTreeList = treeListToRelativePath options.basePath, options.treeList
+	# sorting normalises the array into an alphabetical list
+	relativeTreeList.sort()
 	jsonList = JSON.stringify relativeTreeList
 	jsonList.should.equal options.shouldEquals
 
@@ -167,7 +169,7 @@ exports.testWalkDirectoryTreeSyncWithSymlink = ->
 	assertTreeList
 		basePath: testDir
 		treeList: dirWatcher.walkDirectoryTreeSync testDir
-		shouldEquals: '["","someFile.txt","aLink","aLink/aFile.txt"]'
+		shouldEquals: '["","aLink","aLink/aFile.txt","someFile.txt"]'
 
 exports.testWatchWriteAndRenameFile = ->
 	testDir = path.resolve tempDir, 'writeAndRenameFile'
