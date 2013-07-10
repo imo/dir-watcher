@@ -16,7 +16,7 @@ assertTreeList = (options) ->
 	jsonList.should.equal options.shouldEquals
 
 makeDirIfNotExists = (dir) ->
-	fs.mkdirSync(dir, 0777) if !existsSync(dir)
+	fs.mkdirSync(dir, 0o777) if !existsSync(dir)
 
 treeListToRelativePath = (basePath, treeList) ->
 	startPos = basePath.length + 1
@@ -26,7 +26,7 @@ treeListToRelativePath = (basePath, treeList) ->
 
 dirWatcher.setup false
 tempDir = path.resolve __dirname, '..', 'temp'
-makeDirIfNotExists(tempDir, 0777)
+makeDirIfNotExists(tempDir, 0o777)
 
 # first test (rm -rf: recursively remove all contents of a directory)
 dirWatcher.rmRecursiveSync tempDir
@@ -157,12 +157,12 @@ exports.testWalkDirectoryTreeSync = ->
 exports.testWalkDirectoryTreeSyncWithSymlink = ->
 	testDir = path.resolve tempDir, 'walkDirectoryTreeSyncWithSymlink'
 	testFile = path.resolve testDir, 'someFile.txt'
-	fs.mkdirSync testDir, 0777
+	fs.mkdirSync testDir, 0o777
 	fs.writeFileSync testFile, 'someFile'
 
 	anotherTestDir = path.resolve tempDir, 'anotherOne'
 	anotherTestDirFile = path.resolve anotherTestDir, 'aFile.txt'
-	fs.mkdirSync anotherTestDir, 0777
+	fs.mkdirSync anotherTestDir, 0o777
 	fs.writeFileSync anotherTestDirFile, '-'
 
 	testDirLink = path.resolve testDir, 'aLink'
@@ -207,7 +207,7 @@ exports.testWatchCreateAndRenameDirectory = ->
 
 	testDir1 = path.resolve testDir, 'testDir1'
 	testDir2 = path.resolve testDir, 'testDir2'
-	fs.mkdirSync testDir1, 0777
+	fs.mkdirSync testDir1, 0o777
 	fs.renameSync testDir1, testDir2
 
 	setTimeout ->
@@ -225,10 +225,10 @@ exports.testWatchRemoveDirectory = ->
 	testWatcher.watchDirectoryTreeSync testDir
 
 	testDir3 = path.resolve testDir, 'testDir3'
-	fs.mkdirSync testDir3, 0777
+	fs.mkdirSync testDir3, 0o777
 
 	testDir4 = path.resolve testDir, 'testDir4'
-	fs.mkdirSync testDir4, 0777
+	fs.mkdirSync testDir4, 0o777
 
 	fs.rmdirSync testDir3
 
@@ -253,7 +253,7 @@ exports.testWatchMakeSubdirectoryFile = ->
 		changeCount++
 	testWatcher.watchDirectoryTreeSync testDir
 
-	fs.mkdirSync testDir4, 0777
+	fs.mkdirSync testDir4, 0o777
 	# inotify doesn't always work immediately so you do need to give it a bit of time
 	setTimeout ->
 		fs.writeFileSync testDir4File1, 'test'
@@ -279,8 +279,8 @@ exports.testWatchRenameDirectoryWithSubdirectory = ->
 	testDir6 = path.resolve testDir, 'testDir6'
 	testDir6Dir1 = path.resolve testDir, 'testDir6', 'testDir1'
 
-	fs.mkdirSync testDir5, 0777
-	fs.mkdirSync testDir5Dir1, 0777
+	fs.mkdirSync testDir5, 0o777
+	fs.mkdirSync testDir5Dir1, 0o777
 	fs.renameSync testDir5, testDir6
 
 	setTimeout ->
