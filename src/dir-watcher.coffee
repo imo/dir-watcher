@@ -10,10 +10,12 @@ inotify = undefined
 
 getPath = (e) -> path.resolve(e.watch, e.name)
 
+existsSync = fs?.existsSync or path?.existsSync
+
 # isDirectorySync needs to be a synchronous call because directories could be moved/deleted after the flag is set during an asynchronous call.
 isDirectorySync = (dir) ->
 	# note: will return true for directory symbolic links
-	if path.existsSync(dir)
+	if existsSync(dir)
 		fs.statSync(dir).isDirectory()
 	else
 		false
@@ -21,7 +23,7 @@ isDirectorySync = (dir) ->
 # isFileSync needs to be a synchronous call because files could be moved/deleted after the flag is set during an asynchronous call.
 isFileSync = (file) ->
 	# note: will return true for file links (both hard & symbolic)
-	if path.existsSync(file)
+	if existsSync(file)
 		fs.statSync(file).isFile()
 	else
 		false
@@ -45,7 +47,7 @@ walkDirectoryTreeSync = (dir, directoriesOnly = false) ->
 
 	pathList = []
 	addPathToList = (entry) ->
-		if path.existsSync entry
+		if existsSync entry
 			if directoriesOnly == false then pathList.push entry
 			stat = fs.statSync entry
 			if stat.isDirectory()
@@ -101,7 +103,7 @@ exports.create = (fileChangedCallback) ->
 							unwatchDirectories entry, watchedDirectories
 					moved_to: (e) ->
 						entry = getPath e
-						if path.existsSync(entry)
+						if existsSync(entry)
 							if fs.statSync(entry).isDirectory()
 								addDirectoryToWatchList entry
 							else
