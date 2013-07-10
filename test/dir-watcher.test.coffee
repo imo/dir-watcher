@@ -6,6 +6,8 @@ should = require 'should'
 
 # private functions
 
+existsSync = fs?.existsSync or path?.existsSync
+
 assertTreeList = (options) ->
 	relativeTreeList = treeListToRelativePath options.basePath, options.treeList
 	# sorting normalises the array into an alphabetical list
@@ -14,7 +16,7 @@ assertTreeList = (options) ->
 	jsonList.should.equal options.shouldEquals
 
 makeDirIfNotExists = (dir) ->
-	fs.mkdirSync(dir, 0777) if !path.existsSync(dir)
+	fs.mkdirSync(dir, 0777) if !existsSync(dir)
 
 treeListToRelativePath = (basePath, treeList) ->
 	startPos = basePath.length + 1
@@ -229,7 +231,7 @@ exports.testWatchRemoveDirectory = ->
 	fs.mkdirSync testDir4, 0777
 
 	fs.rmdirSync testDir3
-	
+
 	setTimeout ->
 		assertTreeList
 			basePath: testDir
