@@ -13,5 +13,8 @@
   },
   "dependencies": {
     "inotify-plusplus": "=1.0.1"
+  },
+  "devDependencies": {
+    "should": "*"
   }
 }
