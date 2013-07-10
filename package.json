@@ -2,12 +2,14 @@
   "name": "dir-watcher",
   "description": "A nodejs library that continuously watches for file changes in specified directories and their subdirectories",
   "author": "khoomeister",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "main": "lib/dir-watcher",
-  "licenses": [{
-    "type": "MIT",
-    "url": "http://opensource.org/licenses/mit-license.php"
-  }],
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://opensource.org/licenses/mit-license.php"
+    }
+  ],
   "engines": {
     "node": ">=0.4.5"
   },
@@ -15,6 +17,8 @@
     "inotify-plusplus": "=1.0.1"
   },
   "devDependencies": {
-    "should": "*"
+    "coffee-script": "~1.6.3",
+    "expresso": "~0.9.2",
+    "should": "~1.2.2"
   }
 }
